@@ -149,27 +149,29 @@ class Renderer: NSObject, MTKViewDelegate {
     
     class func buildMesh(device: MTLDevice,
                          mtlVertexDescriptor: MTLVertexDescriptor) throws -> MTKMesh {
-        /// Create and condition mesh data to feed into a pipeline using the given vertex descriptor
-        
+        /// Load mesh data from an OBJ file in the app bundle using the given vertex descriptor
+
         let metalAllocator = MTKMeshBufferAllocator(device: device)
-        
-        let mdlMesh = MDLMesh.newBox(withDimensions: SIMD3<Float>(4, 4, 4),
-                                     segments: SIMD3<UInt32>(2, 2, 2),
-                                     geometryType: MDLGeometryType.triangles,
-                                     inwardNormals:false,
-                                     allocator: metalAllocator)
-        
+
+        guard let url = Bundle.main.url(forResource: "cube", withExtension: "obj") else {
+            throw RendererError.badVertexDescriptor
+        }
+
         let mdlVertexDescriptor = MTKModelIOVertexDescriptorFromMetal(mtlVertexDescriptor)
-        
+
         guard let attributes = mdlVertexDescriptor.attributes as? [MDLVertexAttribute] else {
             throw RendererError.badVertexDescriptor
         }
         attributes[VertexAttribute.position.rawValue].name = MDLVertexAttributePosition
         attributes[VertexAttribute.texcoord.rawValue].name = MDLVertexAttributeTextureCoordinate
-        
-        mdlMesh.vertexDescriptor = mdlVertexDescriptor
-        
-        return try MTKMesh(mesh:mdlMesh, device:device)
+
+        let asset = MDLAsset(url: url, vertexDescriptor: mdlVertexDescriptor, bufferAllocator: metalAllocator)
+
+        guard let mdlMesh = asset.childObjects(of: MDLMesh.self).first as? MDLMesh else {
+            throw RendererError.badVertexDescriptor
+        }
+
+        return try MTKMesh(mesh: mdlMesh, device: device)
     }
     
     class func loadTexture(device: MTLDevice,
